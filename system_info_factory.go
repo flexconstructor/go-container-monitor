@@ -21,7 +21,7 @@ type SystemInfoFactory struct {
 // Returns new instance of system info factory.
 func NewSystemInfoFactory() *SystemInfoFactory {
 	return &SystemInfoFactory{
-		system_info: &SystemInfo{},
+		system_info: NewSystemInfo(),
 	}
 }
 
