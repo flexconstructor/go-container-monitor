@@ -1,0 +1,23 @@
+version: '2'
+services:
+  test-service:
+    image: test-image
+    build:
+      context: ./container_example
+    container_name: test-container
+    links:
+      - redis_db:redis
+    volumes_from:
+      - container-monitor
+    environment:
+      REDIS_URL: redis:6379
+  container-monitor:
+    build:
+      context: .
+    image: container-monitor
+    container_name: container-monitor-test
+  redis_db:
+    image: redis
+    container_name: redis-server
+    expose:
+      - '6379'
