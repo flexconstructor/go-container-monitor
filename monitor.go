@@ -2,73 +2,59 @@ package container_monitor
 
 import (
 	"log"
-	"net"
 	"time"
+	"gopkg.in/redis.v4"
 )
 
 // Container monitor struct. This monitor listens unix socket
 // and writes to socket system info from container where this running.
 type ContainerMonitor struct {
-	socket_file   string             // UNIX socket file path.
 	close_channel chan bool          // Channel for close signal.
 	info_factory  *SystemInfoFactory // System info factory.
+	client *redis.Client
 }
 
-func NewContainerMonitor(socket_file_name string) *ContainerMonitor {
+func NewContainerMonitor(redis_url string) *ContainerMonitor {
 	return &ContainerMonitor{
-		socket_file:   socket_file_name,
 		close_channel: make(chan bool),
 		info_factory:  NewSystemInfoFactory(),
+		client: redis.NewClient(&redis.Options{
+			Addr:redis_url,
+			Password:"",
+			DB:0,
+		}),
 	}
 }
 
 // Runs the container monitor.
 // Just starts listen of unix socket.
 func (m *ContainerMonitor) Run() {
-	connection, err := net.Listen("unix", m.socket_file)
-	if err != nil {
-		log.Printf("listen error %v", err)
-		return
-	}
-	defer connection.Close()
-	go m.listenConnection(connection)
+	pong,err:= m.client.Ping().Result()
 
-	if err != nil {
-		log.Printf("Dial error %v", err)
+	defer m.client.Close()
+	if(err != nil){
+		log.Printf("redis error: %s",err.Error())
 		return
 	}
-	for {
-		select {
-		case <-m.close_channel:
-			return
+	log.Printf("pong: %v",pong)
+	for{
+		select{
+		case <-time.After(2 * time.Second):
+		m.writeSystemInfo()
+		case <- m.close_channel:
+		return
 		}
 	}
 }
 
-// Listens established connection and starts timer for send information for
-// client.
-func (m *ContainerMonitor) listenConnection(listener net.Listener) {
-	for {
-		connection, err := listener.Accept()
-		if err != nil {
-			log.Printf("can not acept connection %v", err)
-			m.Stop()
-			return
-		}
-		for {
-			select {
-			case <-m.close_channel:
-				connection.Close()
-				return
-			case <-time.After(2 * time.Second):
-				_, err := connection.Write(m.info_factory.GetSystemInfo())
-				if err != nil {
-					log.Printf("Can not write message to socket: %v", err)
-					m.Stop()
-					return
-				}
-			}
-		}
+
+func (m *ContainerMonitor) writeSystemInfo(){
+ info:= m.info_factory.GetSystemInfo();
+	log.Printf(string(info))
+	err:= m.client.Set("system:info",info,0).Err()
+	if(err != nil){
+		log.Printf("WRITE DATA ERROR: %s",err.Error())
+		m.Stop()
 	}
 }
 
