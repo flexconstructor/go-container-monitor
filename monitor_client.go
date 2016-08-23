@@ -1,64 +1,58 @@
 package container_monitor
 
 import (
+	"gopkg.in/redis.v4"
 	"log"
-	"net"
 )
 
 // System monitor UNIX socket client.
 type MonitorClient struct {
-	socket_file string      // UNIX socket file name.
-	SystemInfo  *SystemInfo // Current system info value object
-	// instance.
-	close_chan   chan bool          // Socket close channel.
+	SystemInfo   *SystemInfo // Current system info value object
+	client       *redis.Client
 	info_factory *SystemInfoFactory // System information factory.
 }
 
 // Returns new system monitor client instance.
-func NewMonitorClient(socket_url string, systemInfo *SystemInfo) *MonitorClient {
+func NewMonitorClient(redis_url string, systemInfo *SystemInfo) *MonitorClient {
 	return &MonitorClient{
-		socket_file:  socket_url,
 		SystemInfo:   systemInfo,
-		close_chan:   make(chan bool),
 		info_factory: NewSystemInfoFactory(),
+		client: redis.NewClient(&redis.Options{
+			Addr:     redis_url,
+			Password: "",
+			DB:       0,
+		}),
 	}
 }
 
 // Run the socket connection.
-func (c *MonitorClient) Run() {
-	connection, err := net.Dial("unix", c.socket_file)
+func (c *MonitorClient) Update() {
+
+	pong, err := c.client.Ping().Result()
 	if err != nil {
-		log.Printf("Can not connect %v", err)
+		log.Printf("redis error: %s", err.Error())
 		return
 	}
-	defer connection.Close()
-	go c.readFromSocket(connection)
-	for {
-		select {
-		case <-c.close_chan:
-			return
-		}
+	log.Printf("pong %v", pong)
+
+	result := c.client.Get("system:info")
+	if result.Err() != nil {
+		log.Printf("READ ERR: %s", result.Err().Error())
+		return
 	}
+	bytes, err := result.Bytes()
+	if err != nil {
+		log.Printf("parse result error: %s", err.Error())
+	}
+	log.Printf("RESULT: %s", result.String())
+	system_info, err := c.info_factory.UnMarshalInfo(bytes)
+	if err != nil {
+		log.Println("Can not unmarshal system info!")
+	}
+	c.SystemInfo = system_info
 }
 
-// Listens socket and read data from.
-func (c *MonitorClient) readFromSocket(connection net.Conn) {
-	buf := make([]byte, 3072)
-	for {
-		n, err := connection.Read(buf[:])
-		if err != nil {
-			c.Stop()
-			return
-		}
-		system_info, err := c.info_factory.UnMarshalInfo(buf[0:n])
-		if err != nil {
-			log.Println("Can not unmarshal system info!")
-		}
-		c.SystemInfo = system_info
-	}
-}
-
-// Write to close channel for close connection and listener.
+// Close redis connection.
 func (c *MonitorClient) Stop() {
-	c.close_chan <- true
+	c.client.Close()
 }
