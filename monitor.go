@@ -11,7 +11,7 @@ import (
 type ContainerMonitor struct {
 	close_channel chan bool          // Channel for close signal.
 	info_factory  *SystemInfoFactory // System info factory.
-	testID string
+	testID        string
 }
 
 // Returns new ContainerMonitor instance.
@@ -22,26 +22,25 @@ func newContainerMonitor(client *redis.Client, test_id string) *ContainerMonitor
 	return &ContainerMonitor{
 		close_channel: make(chan bool),
 		info_factory:  NewSystemInfoFactory(client),
-		testID:test_id,
+		testID:        test_id,
 	}
 }
 
 // Runs the container monitor.
 // Just starts listen of unix socket.
 func (m *ContainerMonitor) Run() {
-	for{
-		select{
-		case <- time.After(time.Second *2):
-		m.info_factory.UpdateSystemInfo(m.testID)
-		case <- m.close_channel:
-		return
+	for {
+		select {
+		case <-time.After(time.Second * 2):
+			m.info_factory.UpdateSystemInfo(m.testID)
+		case <-m.close_channel:
+			return
 		}
 	}
 }
 
-
 // Close redis connection.
 func (m *ContainerMonitor) Stop() {
-	log.Println("stop test: %s",m.testID)
+	log.Println("stop test: %s", m.testID)
 	m.close_channel <- true
 }

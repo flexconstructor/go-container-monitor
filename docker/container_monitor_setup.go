@@ -1,12 +1,13 @@
 package main
+
 import (
-	"github.com/flexconstructor/go-container-monitor"
-	"log"
 	"flag"
+	"github.com/flexconstructor/go-container-monitor"
 	"github.com/sevlyar/go-daemon"
+	"log"
 	"os"
-	"syscall"
 	"strings"
+	"syscall"
 )
 
 // Application for collect information about media server system.
@@ -64,16 +65,16 @@ func main() {
 
 	log.Println("- - - - - - - - - - - - - - -")
 	log.Println("system monitor daemon started")
-	redis_url:=""
+	redis_url := ""
 	for _, e := range os.Environ() {
 		pair := strings.Split(e, "=")
-		if(pair[0] == "REDIS_URL"){
+		if pair[0] == "REDIS_URL" {
 			redis_url = pair[1]
 			break
 		}
 	}
 
-	listener = container_monitor.NewRedisListener(redis_url,"",0)
+	listener = container_monitor.NewRedisListener(redis_url, "", 0)
 	go listener.Listen()
 	defer listener.Close()
 
