@@ -21,8 +21,8 @@ func (b ByCPU) Less(i, j int) bool {
 	if b[i] == nil || b[j] == nil {
 		return false
 	}
-	if b[i].CPUPersent > 0 || b[j].CPUPersent > 0 {
-		return b[i].CPUPersent > b[j].CPUPersent
+	if b[i].CPUPercent > 0 || b[j].CPUPercent > 0 {
+		return b[i].CPUPercent > b[j].CPUPercent
 	}
-	return b[i].MemoryPersent > b[j].MemoryPersent
+	return b[i].MemoryPercent > b[j].MemoryPercent
 }

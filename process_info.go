@@ -12,7 +12,7 @@ type ProcessInfo struct {
 	Cwd           string                  // Process file path.
 	CreateTime    string                  // Process creation UNIX time.
 	MemoryInfo    *process.MemoryInfoStat // Process memory usage info.
-	MemoryPersent float32                 // Usage virtual memory in percents.
-	NumThreads    int32                   // Process threads count.
-	CPUPersent    float64                 // CPU usage in percents.
+	MemoryPercent float64                 // Usage virtual memory in percents.
+	NumThreads    int64                   // Process threads count.
+	CPUPercent    float64                 // CPU usage in percents.
 }

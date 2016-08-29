@@ -23,7 +23,7 @@ var (
 
 // Create new system monitor instance.
 var (
-	monitor *container_monitor.ContainerMonitor
+	listener *container_monitor.RedisListener
 )
 
 // Main function.
@@ -72,10 +72,10 @@ func main() {
 			break
 		}
 	}
-	monitor  = container_monitor.NewContainerMonitor(redis_url)
 
-	go monitor.Run()
-	defer monitor.Stop()
+	listener = container_monitor.NewRedisListener(redis_url,"",0)
+	go listener.Listen()
+	defer listener.Close()
 
 	err = daemon.ServeSignals()
 	if err != nil {
@@ -87,6 +87,6 @@ func main() {
 // Terminate daemon.
 func terminateHandler(sig os.Signal) error {
 	log.Println("terminating system monitor...")
-	monitor.Stop()
+	listener.Close()
 	return daemon.ErrStop
 }

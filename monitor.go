@@ -11,54 +11,37 @@ import (
 type ContainerMonitor struct {
 	close_channel chan bool          // Channel for close signal.
 	info_factory  *SystemInfoFactory // System info factory.
-	client        *redis.Client
+	testID string
 }
 
 // Returns new ContainerMonitor instance.
-func NewContainerMonitor(redis_url string) *ContainerMonitor {
+//
+// params: client *redis.Client   Instance of Redis client.
+//         test_id string         Test ID.
+func newContainerMonitor(client *redis.Client, test_id string) *ContainerMonitor {
 	return &ContainerMonitor{
 		close_channel: make(chan bool),
-		info_factory:  NewSystemInfoFactory(),
-		client: redis.NewClient(&redis.Options{
-			Addr:     redis_url,
-			Password: "",
-			DB:       0,
-		}),
+		info_factory:  NewSystemInfoFactory(client),
+		testID:test_id,
 	}
 }
 
 // Runs the container monitor.
 // Just starts listen of unix socket.
 func (m *ContainerMonitor) Run() {
-	pong, err := m.client.Ping().Result()
-	defer m.client.Close()
-	if err != nil {
-		log.Printf("redis error: %s", err.Error())
+	for{
+		select{
+		case <- time.After(time.Second *2):
+		m.info_factory.UpdateSystemInfo(m.testID)
+		case <- m.close_channel:
 		return
-	}
-	log.Printf("pong: %v", pong)
-	for {
-		select {
-		case <-time.After(2 * time.Second):
-			m.writeSystemInfo()
-		case <-m.close_channel:
-			return
 		}
 	}
 }
 
-// Writes system info to redis DB.
-func (m *ContainerMonitor) writeSystemInfo() {
-	info := m.info_factory.GetSystemInfo()
-	log.Printf(string(info))
-	err := m.client.Set("system:info", info, 0).Err()
-	if err != nil {
-		log.Printf("WRITE DATA ERROR: %s", err.Error())
-		m.Stop()
-	}
-}
 
 // Close redis connection.
 func (m *ContainerMonitor) Stop() {
+	log.Println("stop test: %s",m.testID)
 	m.close_channel <- true
 }
